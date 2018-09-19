@@ -1,0 +1,2 @@
+class SearchFilter < ApplicationRecord
+end

@@ -1,0 +1,2 @@
+class AttributeMapper < ApplicationRecord
+end
