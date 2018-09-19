@@ -5,42 +5,37 @@ class BunnySender
     self.client = Bunny.new(default_config.merge(config))
   end
 
+  def send_once(queue_name, message, &block)
+    open_connection
+    add_channel(queue_name, shared_queue_option)
+    call_back(&block) if block_given?
+    send_message(queue_name, message)
+    close_connection
+  end
+
   def open_connection
     client.start
   end
 
-  def call_back
+  def close_connection
+    sleep 0.5
+    client.close
+  end
+
+  def call_back(&block)
     queue.subscribe do |_delivery_info, _metadata, payload|
       yield(_delivery_info, _metadata, payload)
     end
   end
 
-  def close_connection
-    client.close
-  end
-
   def send_message(queue_name, object)
-    exchange.publish('Hello!', routing_key: queue.name)
+    exchange.publish(object, routing_key: queue_name)
   end
 
   def add_channel(name = '', options = {})
     self.channel = client.create_channel
     self.queue  = channel.queue(name, options)
     self.exchange  = channel.default_exchange
-  end
-
-  def send_test
-    STDOUT.sync = true
-    client.start
-
-    add_channel('bunny.examples.hello_world', auto_delete: true)
-    queue.subscribe do |_delivery_info, _metadata, payload|
-      puts "Received #{payload}"
-    end
-    exchange.publish('Hello!', routing_key: queue.name)
-
-    sleep 1.0
-    client.close
   end
 
   private
@@ -57,5 +52,13 @@ class BunnySender
       frame_max: 131_072,
       auth_mechanism: 'PLAIN'
     }
+  end
+
+  def shared_queue_option
+    { :durable => true, :auto_delete => false }
+  end
+
+  def temporary_queue_option
+    { :exclusive => true, :auto_delete => false }
   end
 end
