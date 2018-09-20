@@ -7,7 +7,7 @@ class BunnySender
 
   def send_once(queue_name, message, &block)
     open_connection
-    add_channel(queue_name, shared_queue_option)
+    default_exchange(queue_name, shared_queue_option)
     call_back(&block) if block_given?
     send_message(queue_name, message)
     close_connection
@@ -32,10 +32,30 @@ class BunnySender
     exchange.publish(object, routing_key: queue_name)
   end
 
-  def add_channel(name = '', options = {})
-    self.channel = client.create_channel
-    self.queue  = channel.queue(name, options)
+  def default_exchange(queue_name = '', options = {})
+    new_channel
     self.exchange  = channel.default_exchange
+    self.queue  = channel.queue(queue_name, options)
+  end
+
+  def topic_exchange(exchange_name, queue_name, options = {} )
+    new_channel
+    self.exchange = channel.topic(exchange_name, options.merge(auto_delete: true))
+    self.queue = channel.queue(queue_name)
+  end
+
+  def fanout_exchange(exchange_name, queue_name, options = {} )
+    new_channel
+    self.exchange = channel.fanout(exchange_name)
+    self.queue  = channel.queue(queue_name, options.merge(auto_delete: true))
+  end
+
+  def bind_queues(routing_key)
+    self.queue = queue.bind(exchange, routing_key: routing_key)
+  end
+
+  def new_channel
+    self.channel = client.create_channel
   end
 
   private
